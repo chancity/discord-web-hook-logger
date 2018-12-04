@@ -31,7 +31,15 @@ namespace discord_web_hook_logger
                 {
                     foreach (string key in colorMap.Keys)
                     {
-                        _colorMap.Add(key, colorMap[key].ToRgb());
+                        if (_colorMap.ContainsKey(key))
+                        {
+                            _colorMap[key] = colorMap[key].ToRgb();
+                        }
+                        else
+                        {
+                            _colorMap.Add(key, colorMap[key].ToRgb());
+                        }
+                        
                     }
                 }
             }
