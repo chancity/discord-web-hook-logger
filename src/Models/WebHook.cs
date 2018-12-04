@@ -5,7 +5,7 @@ namespace discord_web_hook_logger.Models
 {
     public class WebHook
     {
-        private static readonly JsonSerializerSettings JsonSerializerSettings = 
+        private static readonly JsonSerializerSettings JsonSerializerSettings =
             new JsonSerializerSettings {NullValueHandling = NullValueHandling.Ignore};
 
         [JsonIgnore]

@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -16,29 +15,30 @@ namespace discord_web_hook_logger
 {
     public partial class WebHookClient
     {
-        public static int RateLimitMs { get; set; }
-
         private static readonly HttpClient HttpClient;
         private static readonly ConcurrentQueue<WebHook> ToSendQueue;
-        private static readonly ConcurrentQueue<LogMessageItem> LogMessageQueue;
         private static readonly int DefaultColor;
         private static readonly HashSet<WebHookClient> WebHookClients;
         private static readonly object LockObj;
 
         static WebHookClient()
         {
-            HttpClient = new HttpClient();
             LockObj = new object();
             WebHookClients = new HashSet<WebHookClient>();
+            HttpClient = new HttpClient();
             DefaultColor = Color.Purple.ToRgb();
             RateLimitMs = 10000;
 
             ToSendQueue = new ConcurrentQueue<WebHook>();
-            LogMessageQueue = new ConcurrentQueue<LogMessageItem>();
 
             var sendWebHooksThread = new Task(QueueThread, TaskCreationOptions.LongRunning);
             sendWebHooksThread.Start();
         }
+
+        public static int RateLimitMs { get; set; }
+        public static int SendingQueueSize => ToSendQueue.Count;
+
+
         private static async Task<WebHookResponse> _Send(WebHook toSend)
         {
             MultipartFormDataContent form = null;
@@ -65,22 +65,25 @@ namespace discord_web_hook_logger
                 stringContent = new StringContent(toSend.PayloadJson, Encoding.UTF8, "application/json");
                 form.Add(stringContent, "payload_json");
 
-                using (HttpResponseMessage response = await HttpClient.PostAsync(toSend.WebHookUrl, form).ConfigureAwait(false))
+                using (HttpResponseMessage response =
+                    await HttpClient.PostAsync(toSend.WebHookUrl, form).ConfigureAwait(false))
                 {
-                    var retString = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                    string retString = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 
-                    if ((int)response.StatusCode != 429)
+                    if ((int) response.StatusCode != 429)
                     {
                         return new WebHookResponse(retString);
                     }
 
                     var rateLimitResponse = JsonConvert.DeserializeObject<DiscordRateLimitResponse>(retString);
+
                     return new WebHookResponse(retString, rateLimitResponse);
                 }
             }
             catch (WebException e)
             {
                 e?.Response?.Dispose();
+
                 throw;
             }
             finally
@@ -90,6 +93,39 @@ namespace discord_web_hook_logger
                 stringContent?.Dispose();
                 fileStringContent?.Dispose();
                 streamContent?.Dispose();
+            }
+
+            
+        }
+
+        public static class Factory
+        {
+            private static readonly ConcurrentDictionary<string, WebHookClient> FactoryWebHookClients;
+           
+            static Factory()
+            {
+                FactoryWebHookClients = new ConcurrentDictionary<string, WebHookClient>();
+            }
+
+            public static WebHookClient CreateClient(long channelId, string channelToken, Dictionary<string, Color> colorMap = null)
+            {
+                var webHookUrl = $"https://discordapp.com/api/webhooks/{channelId}/{channelToken}";
+
+                if (!FactoryWebHookClients.ContainsKey(webHookUrl))
+                {
+                    FactoryWebHookClients.TryAdd(webHookUrl, new WebHookClient(webHookUrl));
+                }
+
+                var ret = FactoryWebHookClients[webHookUrl];
+
+                ret.UpdateColorMap(colorMap);
+
+                lock (LockObj)
+                {
+                    WebHookClients.Add(ret);
+                }
+
+                return ret;
             }
         }
     }

@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Threading;
 using discord_web_hook_logger;
 using discord_web_hook_logger.Extensions;
 using discord_web_hook_logger.Models;
@@ -13,84 +11,107 @@ namespace example
 {
     class Program
     {
+        private static readonly WebHookClient DiscordWebHookClient;
+        private static readonly IDiscordLogger Logger;
+        private static readonly long _discordChannelId = 519560492172181519;
+        private static readonly string _discordChannelToken = "p9feyLifxedaxy50b8lAmnG3GZZ3lkAjKpJhuJO_gZSeR-9ZwAoStzgqztJ5wU1-cge6";
+
+        static Program()
+        {
+            //With Logger factory
+            Logger = DicordLogFactory.GetLogger<Program>(_discordChannelId, _discordChannelToken);
+
+            //Color of messageType
+            Dictionary<string, Color> colorMap = new Dictionary<string, Color>
+            {
+                {"QueuedLogMessage", Color.DeepPink},
+                {"SendLogMessage", Color.Green},
+            };
+
+            //Without logger factory
+            DiscordWebHookClient = WebHookClient.Factory.CreateClient(_discordChannelId, _discordChannelToken, colorMap);
+
+            //If set to true all logs level will aggregate into a single message
+            //Setting to false will seperate log levels into their own message
+            DiscordWebHookClient.CombineMessageTypes = false;
+
+
+            //Log can take N seconds to appear, adjust using WebHookClient.RateLimitMs
+            WebHookClient.RateLimitMs = 10000;
+        }
+
         //Webhook URL  https://discordapp.com/api/webhooks/519560492172181519/p9feyLifxedaxy50b8lAmnG3GZZ3lkAjKpJhuJO_gZSeR-9ZwAoStzgqztJ5wU1-cge6
         //Id 519560492172181519
         //Token p9feyLifxedaxy50b8lAmnG3GZZ3lkAjKpJhuJO_gZSeR-9ZwAoStzgqztJ5wU1-cge6
         static void Main(string[] args)
         {
-            var discordChannelId = 519560492172181519;
-            var discordChannelToken = "p9feyLifxedaxy50b8lAmnG3GZZ3lkAjKpJhuJO_gZSeR-9ZwAoStzgqztJ5wU1-cge6";
-
-
-            SendWithLoggerFactory(discordChannelId, discordChannelToken);
-
-            SendWithoutLoggerFactory(discordChannelId,discordChannelToken);
+            SendWithLoggerFactory();
+            SendWithoutLoggerFactory();
 
             Console.ReadLine();
         }
-
-        static void SendWithLoggerFactory(long discordChannelId, string discordChannelToken)
+        static void SendWithLoggerFactory()
         {
-            var logger = DicordLogFactory.GetLogger<Program>(discordChannelId, discordChannelToken);
-            logger.LogCritical("Test Critical Log");
-            logger.LogError("Test Error Log");
-            logger.LogDebug("Test Debug Log");
-            logger.LogWarning("Test Warning Log");
-            logger.LogInformation("Test Information Log");
-            logger.LogTrace("Test Trace Log");
+            Logger.LogCritical("Test Critical Log");
+            Logger.LogError("Test Error Log");
+            Logger.LogDebug("Test Debug Log");
+            Logger.LogWarning("Test Warning Log");
+            Logger.LogInformation("Test Information Log");
+            Logger.LogTrace("Test Trace Log");
         }
 
-        static void SendWithoutLoggerFactory(long discordChannelId, string discordChannelToken)
+        static void SendWithoutLoggerFactory()
         {
-            //Color of messageType
-            Dictionary<string, Color> colorMap = new Dictionary<string, Color>
-            {
-                {"messageType1", Color.DeepPink},
-                {"messageType2", Color.HotPink},
-            };
-
-            //Without logger factory
-            var webHookClient = new WebHookClient(discordChannelId, discordChannelToken, colorMap)
-            {
-                //If set to true all logs level will aggregate into a single message
-                //Setting to false will seperate log levels into their own message
-                CombineMessageTypes = false
-            };
-
-
-            //Log can take N seconds to appear, adjust using WebHookClient.RateLimitMs
-            WebHookClient.RateLimitMs = 10000;
-            webHookClient.QueueLogMessage("messageType1", "message", new Exception());
+            DiscordWebHookClient.QueueLogMessage("QueuedLogMessage", "message", new Exception());
 
             //Sends immediately
-            webHookClient.SendLogMessage("messageType2", "message", new Exception());
+            DiscordWebHookClient.SendLogMessage("SendLogMessage", "message", new Exception());
 
 
-            var embed = new Embed
+            var embed1 = new Embed
             {
-                Title = "Title",
+                Title = "QueuedMessage",
                 Color = Color.Aqua.ToRgb()
             };
 
-            embed.Fields.Add(new EmbedField
+            embed1.Fields.Add(new EmbedField
             {
                 Inline = false,
                 Name = $"{DateTime.Now}",
                 Value = "Message"
             });
 
-            var toSend = new WebHook
+            var toSend1 = new WebHook
+            {
+                FileData = "Some string error message thats too big for a message"
+            };
+            toSend1.Embeds.Add(embed1);
+
+            //This queues the log for sending
+            DiscordWebHookClient.QueueSendMessage(toSend1);
+
+            var embed2 = new Embed
+            {
+                Title = "SendMessage",
+                Color = Color.Aqua.ToRgb()
+            };
+
+            embed2.Fields.Add(new EmbedField
+            {
+                Inline = false,
+                Name = $"{DateTime.Now}",
+                Value = "Message"
+            });
+
+            var toSend2 = new WebHook
             {
                 FileData = "Some string error message thats too big for a message"
             };
 
-            toSend.Embeds.Add(embed);
-
-            //This queues the log for sending
-            webHookClient.QueueMessage(toSend);
+            toSend2.Embeds.Add(embed2);
 
             //This will send the log immediately 
-            webHookClient.SendMessage(toSend);
+            DiscordWebHookClient.SendMessage(toSend2);
         }
     }
 }

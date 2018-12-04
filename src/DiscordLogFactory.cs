@@ -36,7 +36,8 @@ namespace discord_web_hook_logger
         }
 
 
-        public static ILogger<T> GetLogger<T>(long channelId, string channelToken, Dictionary<string, Color> colorMap = null)
+        public static IDiscordLogger GetLogger<T>(long channelId, string channelToken,
+                                                  Dictionary<string, Color> colorMap = null)
         {
             return new DiscordLogger<T>(LoggerFactory, channelId, channelToken, colorMap);
         }

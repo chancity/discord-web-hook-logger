@@ -10,33 +10,47 @@ namespace discord_web_hook_logger
     public partial class WebHookClient
     {
         private readonly Dictionary<string, int> _colorMap;
+        private readonly object _colorMapLockObject;
+        private readonly object _mergeDiclockObject;
+        private readonly Dictionary<string, Embed> _mergedMessagesDic;
 
-        public WebHookClient(long channelId, string channelToken, Dictionary<string, Color> colorMap = null) : this(
-            $"https://discordapp.com/api/webhooks/{channelId}/{channelToken}", colorMap) { }
-
-        public WebHookClient(string webhookUrl, Dictionary<string, Color> colorMap = null)
+        private WebHookClient(string webhookUrl)
         {
+            _colorMapLockObject = new object();
+            _mergeDiclockObject = new object();
+            _mergedMessagesDic = new Dictionary<string, Embed>();
             WebHookUrl = webhookUrl;
             _colorMap = new Dictionary<string, int>();
-
-            if (colorMap != null)
-            {
-                foreach (string key in colorMap.Keys)
-                {
-                    _colorMap.Add(key, colorMap[key].ToRgb());
-                }
-            }
-
-            lock (LockObj)
-            {
-                WebHookClients.Add(this);
-            }
         }
 
+        private void UpdateColorMap(Dictionary<string, Color> colorMap)
+        {
+            if (colorMap != null)
+            {
+                lock (_colorMapLockObject)
+                {
+                    foreach (string key in colorMap.Keys)
+                    {
+                        _colorMap.Add(key, colorMap[key].ToRgb());
+                    }
+                }
+            }
+        }
         [JsonIgnore]
         public string WebHookUrl { get; }
 
         public bool CombineMessageTypes { get; set; } = false;
+
+        public int PendingQueueSize
+        {
+            get
+            {
+                lock (_mergedMessagesDic)
+                {
+                    return _mergedMessagesDic.Count;
+                }
+            }
+        }
 
         public void SendLogMessage(string messageType, string message, Exception exception = null)
         {
@@ -53,18 +67,10 @@ namespace discord_web_hook_logger
             SendLogMessage(toSend);
         }
 
-        public void QueueLogMessage(string messageType, string message, Exception exception = null)
+        public void SendMessage(WebHook toSend)
         {
-            var toSend = new LogMessageItem
-            {
-                Message = message,
-                MessageType = messageType,
-                Color = GetMessageColor(messageType),
-                StackTrace = exception?.StackTrace,
-                Time = DateTime.UtcNow
-            };
-
-            LogMessageQueue.Enqueue(toSend);
+            toSend.WebHookUrl = WebHookUrl;
+            _Send(toSend).Wait();
         }
 
         private void SendLogMessage(LogMessageItem logMessageItem)
@@ -92,16 +98,94 @@ namespace discord_web_hook_logger
             SendMessage(toSend);
         }
 
-        public void QueueMessage(WebHook toSend)
+        public void QueueSendMessage(WebHook toSend)
         {
             toSend.WebHookUrl = WebHookUrl;
             ToSendQueue.Enqueue(toSend);
         }
 
-        public void SendMessage(WebHook toSend)
+        public void QueueLogMessage(string messageType, string message, Exception exception = null)
         {
-            toSend.WebHookUrl = WebHookUrl;
-            _Send(toSend).Wait();
+
+            var logMessageItem = new LogMessageItem
+            {
+                Message = message,
+                MessageType = messageType,
+                Color = GetMessageColor(messageType),
+                StackTrace = exception?.StackTrace,
+                Time = DateTime.UtcNow
+            };
+
+            MergeLogMessage(logMessageItem);
+        }
+
+        private void MergedMessagesToSendQueue()
+        {
+            lock (_mergeDiclockObject)
+            {
+                if (_mergedMessagesDic.Count == 0)
+                {
+                    return;
+                }
+
+                foreach (Embed embed in _mergedMessagesDic.Values)
+                {
+                    QueueMergedLogMessages(embed);
+                }
+
+                _mergedMessagesDic.Clear();
+            }
+        }
+
+        private void MergeLogMessage(LogMessageItem logMessageItem)
+        {
+            lock (_mergeDiclockObject)
+            {
+                string messageType = CombineMessageTypes ? "combined" : logMessageItem.MessageType;
+
+                if (_mergedMessagesDic.ContainsKey(messageType))
+                {
+                    Embed mergedItem = _mergedMessagesDic[messageType];
+
+                    mergedItem.Fields.Add(new EmbedField
+                    {
+                        Inline = false,
+                        Name = $"{logMessageItem.Time}",
+                        Value = logMessageItem.Message
+                    });
+
+                    if (mergedItem.Fields.Count == 25)
+                    {
+                        QueueMergedLogMessages(mergedItem);
+                        _mergedMessagesDic.Remove(messageType);
+                    }
+                }
+                else
+                {
+                    var embed = new Embed
+                    {
+                        Title = logMessageItem.MessageType,
+                        Color = logMessageItem.Color,
+                        Fields = new List<EmbedField>()
+                    };
+
+                    embed.Fields.Add(new EmbedField
+                    {
+                        Inline = false,
+                        Name = $"{logMessageItem.Time}",
+                        Value = logMessageItem.Message
+                    });
+
+                    _mergedMessagesDic.Add(messageType, embed);
+                }
+            }
+        }
+
+        private void QueueMergedLogMessages(Embed embed)
+        {
+            var toSend = new WebHook();
+            toSend.Embeds.Add(embed);
+            QueueSendMessage(toSend);
         }
 
         private int GetMessageColor(string messageType)
