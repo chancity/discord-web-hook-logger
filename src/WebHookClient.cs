@@ -11,8 +11,8 @@ namespace discord_web_hook_logger
     {
         private readonly Dictionary<string, int> _colorMap;
 
-        public WebHookClient(ulong id, string token, Dictionary<string, Color> colorMap = null) : this(
-            $"https://discordapp.com/api/webhooks/{id}/{token}", colorMap) { }
+        public WebHookClient(long channelId, string channelToken, Dictionary<string, Color> colorMap = null) : this(
+            $"https://discordapp.com/api/webhooks/{channelId}/{channelToken}", colorMap) { }
 
         public WebHookClient(string webhookUrl, Dictionary<string, Color> colorMap = null)
         {

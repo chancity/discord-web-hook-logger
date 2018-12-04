@@ -38,9 +38,9 @@ namespace discord_web_hook_logger
         }
 
 
-        public static ILogger<T> GetLogger<T>(ulong id, string token, Dictionary<string, Color> colorMap = null)
+        public static ILogger<T> GetLogger<T>(long channelId, string channelToken, Dictionary<string, Color> colorMap = null)
         {
-            return new DiscordLogger<T>(LoggerFactory, id, token, colorMap);
+            return new DiscordLogger<T>(LoggerFactory, channelId, channelToken, colorMap);
         }
     }
 
@@ -61,7 +61,7 @@ namespace discord_web_hook_logger
         private readonly string _type;
         private readonly WebHookClient _webHookClient;
 
-        public DiscordLogger(ILoggerFactory factory, ulong id, string token, Dictionary<string, Color> colorMap)
+        public DiscordLogger(ILoggerFactory factory, long channelId, string channelToken, Dictionary<string, Color> colorMap)
         {
             if (factory == null)
             {
@@ -79,7 +79,7 @@ namespace discord_web_hook_logger
             }
 
 
-            _webHookClient = new WebHookClient(id, token, colorMap)
+            _webHookClient = new WebHookClient(channelId, channelToken, colorMap)
             {
                 MergeAllTypes = false
             };
@@ -99,7 +99,6 @@ namespace discord_web_hook_logger
             if (logLevel == LogLevel.Critical)
             {
                 _webHookClient.ForceSendLogMessage(logLevel.ToString(), description, exception?.StackTrace);
-                Environment.Exit(0);
             }
 
             if (logLevel >= LogLevel.Error)
