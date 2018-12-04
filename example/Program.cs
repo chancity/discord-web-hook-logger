@@ -33,7 +33,7 @@ namespace example
 
             //If set to true all logs level will aggregate into a single message
             //Setting to false will seperate log levels into their own message
-            DiscordWebHookClient.CombineMessageTypes = false;
+            DiscordWebHookClient.CombineMessageTypes = true;
 
 
             //Log can take N seconds to appear, adjust using WebHookClient.RateLimitMs
@@ -54,7 +54,6 @@ namespace example
         {
             Logger.LogCritical("Test Critical Log");
             Logger.LogError("Test Error Log");
-            Logger.LogDebug("Test Debug Log");
             Logger.LogWarning("Test Warning Log");
             Logger.LogInformation("Test Information Log");
             Logger.LogTrace("Test Trace Log");

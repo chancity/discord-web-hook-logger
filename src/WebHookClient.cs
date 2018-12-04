@@ -141,7 +141,7 @@ namespace discord_web_hook_logger
         {
             lock (_mergeDiclockObject)
             {
-                string messageType = CombineMessageTypes ? "combined" : logMessageItem.MessageType;
+                string messageType = CombineMessageTypes ? "Aggregated" : logMessageItem.MessageType;
 
                 if (_mergedMessagesDic.ContainsKey(messageType))
                 {
@@ -164,7 +164,7 @@ namespace discord_web_hook_logger
                 {
                     var embed = new Embed
                     {
-                        Title = logMessageItem.MessageType,
+                        Title = messageType,
                         Color = logMessageItem.Color,
                         Fields = new List<EmbedField>()
                     };
@@ -190,12 +190,15 @@ namespace discord_web_hook_logger
 
         private int GetMessageColor(string messageType)
         {
-            if (!_colorMap.ContainsKey(messageType))
+            lock (_colorMapLockObject)
             {
-                return DefaultColor;
-            }
+                if (!_colorMap.ContainsKey(messageType))
+                {
+                    return DefaultColor;
+                }
 
-            return _colorMap[messageType];
+                return _colorMap[messageType];
+            }
         }
 
         protected bool Equals(WebHookClient other)
