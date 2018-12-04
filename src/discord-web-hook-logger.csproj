@@ -7,6 +7,10 @@
     <StartupObject />
     <RootNamespace>discord_web_hook_logger</RootNamespace>
     <AssemblyName>Discord-web-hook-logger</AssemblyName>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Authors>chancity</Authors>
+    <PackageId>discord-web-hook-logger</PackageId>
+    <Product>discord-web-hook-logger</Product>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
