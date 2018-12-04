@@ -19,8 +19,6 @@ namespace discord_web_hook_logger
             WebHookUrl = webhookUrl;
             _colorMap = new Dictionary<string, int>();
 
-            MergeAllTypes = false;
-
             if (colorMap != null)
             {
                 foreach (string key in colorMap.Keys)
@@ -38,39 +36,38 @@ namespace discord_web_hook_logger
         [JsonIgnore]
         public string WebHookUrl { get; }
 
-        public bool MergeAllTypes { get; set; }
+        public bool CombineMessageTypes { get; set; } = false;
 
-        public void ForceSendLogMessage(string messageType, string message, string stackTrace = null)
+        public void SendLogMessage(string messageType, string message, Exception exception = null)
         {
             var toSend = new LogMessageItem
             {
                 Message = message,
                 MessageType = messageType,
                 Color = GetMessageColor(messageType),
-                StackTrace = stackTrace,
+                StackTrace = exception?.StackTrace,
                 Time = DateTime.UtcNow
             };
 
 
-            ForceSend(toSend);
+            SendLogMessage(toSend);
         }
 
-        public void QueueLogMessage(string messageType, string message, string stackTrace = null)
+        public void QueueLogMessage(string messageType, string message, Exception exception = null)
         {
             var toSend = new LogMessageItem
             {
                 Message = message,
                 MessageType = messageType,
                 Color = GetMessageColor(messageType),
-                StackTrace = stackTrace,
+                StackTrace = exception?.StackTrace,
                 Time = DateTime.UtcNow
             };
-
 
             LogMessageQueue.Enqueue(toSend);
         }
 
-        private void ForceSend(LogMessageItem logMessageItem)
+        private void SendLogMessage(LogMessageItem logMessageItem)
         {
             var embed = new Embed
             {
@@ -87,17 +84,24 @@ namespace discord_web_hook_logger
 
             var toSend = new WebHook
             {
-                WebHookUrl = WebHookUrl,
                 FileData = logMessageItem.StackTrace
             };
 
             toSend.Embeds.Add(embed);
-            _Send(toSend, toSend.FileData).Wait();
+
+            SendMessage(toSend);
         }
 
-        public void Send(WebHook toSend)
+        public void QueueMessage(WebHook toSend)
         {
+            toSend.WebHookUrl = WebHookUrl;
             ToSendQueue.Enqueue(toSend);
+        }
+
+        public void SendMessage(WebHook toSend)
+        {
+            toSend.WebHookUrl = WebHookUrl;
+            _Send(toSend).Wait();
         }
 
         private int GetMessageColor(string messageType)

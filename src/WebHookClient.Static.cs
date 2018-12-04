@@ -39,7 +39,7 @@ namespace discord_web_hook_logger
             var sendWebHooksThread = new Task(QueueThread, TaskCreationOptions.LongRunning);
             sendWebHooksThread.Start();
         }
-        private static async Task<WebHookResponse> _Send(WebHook toSend, string fileData = null)
+        private static async Task<WebHookResponse> _Send(WebHook toSend)
         {
             MultipartFormDataContent form = null;
             MemoryStream stream = null;
@@ -51,9 +51,9 @@ namespace discord_web_hook_logger
             {
                 form = new MultipartFormDataContent();
 
-                if (!string.IsNullOrEmpty(fileData))
+                if (!string.IsNullOrEmpty(toSend.FileData))
                 {
-                    byte[] byteArray = Encoding.UTF8.GetBytes(fileData);
+                    byte[] byteArray = Encoding.UTF8.GetBytes(toSend.FileData);
                     stream = new MemoryStream(byteArray);
                     streamContent = new StreamContent(stream);
 

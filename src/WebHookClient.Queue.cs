@@ -16,7 +16,7 @@ namespace discord_web_hook_logger
                 {
                     foreach (WebHookClient webHookClient in WebHookClients)
                     {
-                        webHookClient.MergeLogs();
+                        webHookClient.MergeMessages();
                     }
                 }
 
@@ -27,7 +27,7 @@ namespace discord_web_hook_logger
 
                     try
                     {
-                        retValue = await _Send(toSend, toSend.FileData).ConfigureAwait(false);
+                        retValue = await _Send(toSend).ConfigureAwait(false);
 
                         if (retValue.RateLimitResponse != null)
                         {
@@ -49,18 +49,18 @@ namespace discord_web_hook_logger
                 await Task.Delay(1).ConfigureAwait(false);
             }
         }
-        private void MergeLogs()
+        private void MergeMessages()
         {
-            if (MergeAllTypes)
+            if (CombineMessageTypes)
             {
-                MergeAllLogTypes();
+                MergeAllMessageTypes();
             }
             else
             {
-                MergeIndividualLogTypes();
+                MergeIndividualMessageTypes();
             }
         }
-        private void MergeIndividualLogTypes()
+        private void MergeIndividualMessageTypes()
         {
             if (LogMessageQueue.IsEmpty)
             {
@@ -135,7 +135,7 @@ namespace discord_web_hook_logger
                 EnqueueLog(queueItemMessagesDic[key]);
             }
         }
-        private void MergeAllLogTypes()
+        private void MergeAllMessageTypes()
         {
             if (LogMessageQueue.IsEmpty)
             {

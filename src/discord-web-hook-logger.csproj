@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>netstandard2.0;netcoreapp2.0;net462</TargetFrameworks>
-    <Version>1.0.0</Version>
+    <Version>1.0.1</Version>
     <ApplicationIcon />
     <OutputType>Library</OutputType>
     <StartupObject />
@@ -11,6 +11,8 @@
     <Authors>chancity</Authors>
     <PackageId>discord-web-hook-logger</PackageId>
     <Product>discord-web-hook-logger</Product>
+    <AssemblyVersion>1.0.1.1</AssemblyVersion>
+    <FileVersion>1.0.1.1</FileVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">

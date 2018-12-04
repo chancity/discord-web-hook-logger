@@ -40,14 +40,25 @@ namespace discord_web_hook_logger {
             }
 
 
-            _webHookClient = new WebHookClient(channelId, channelToken, colorMap)
-            {
-                MergeAllTypes = false
-            };
+            _webHookClient = new WebHookClient(channelId, channelToken, colorMap);
         }
 
-        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception,
-                                Func<TState, Exception, string> formatter)
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
+        {
+            var description = GetLogDescription(logLevel, eventId, state, exception, formatter);
+
+            if (logLevel == LogLevel.Critical)
+            {
+                _webHookClient.SendLogMessage(logLevel.ToString(), description, exception);
+            }
+            else
+            {
+                _webHookClient.QueueLogMessage(logLevel.ToString(), description, exception);
+            }
+            //this._logger.Log<TState>(logLevel, eventId, state, exception, formatter);
+        }
+
+        private string GetLogDescription<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
         {
             string formatted = formatter.Invoke(state, exception);
             string description = $"**({_type})** {formatted}";
@@ -57,24 +68,8 @@ namespace discord_web_hook_logger {
                 description += $"{(string.IsNullOrEmpty(formatted) ? "" : ". ")}" + $"Ex: {exception.Message}";
             }
 
-            if (logLevel == LogLevel.Critical)
-            {
-                _webHookClient.ForceSendLogMessage(logLevel.ToString(), description, exception?.StackTrace);
-            }
-
-            if (logLevel >= LogLevel.Error)
-            {
-                _webHookClient.QueueLogMessage(logLevel.ToString(), description, exception?.StackTrace);
-            }
-            else
-            {
-                _webHookClient.QueueLogMessage(logLevel.ToString(), description);
-            }
-
-
-            //this._logger.Log<TState>(logLevel, eventId, state, exception, formatter);
+            return description;
         }
-
         public bool IsEnabled(LogLevel logLevel)
         {
             return _logger.IsEnabled(logLevel);
